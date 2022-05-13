@@ -198,8 +198,21 @@ ggplot(., aes(Mosquito, Virus, Z = Ratio)) +
 
 ## Figure 5
 
+spec.per.genus <- All %>% group_by(Genus) %>% summarize(num_spec = length(unique(Species)))
+
 color.repeat <- unlist(apply(matrix(spec.per.genus$num_spec)
   , 1, FUN = function(x) scales::hue_pal()(15)[seq(1, x)])
+  )
+
+max_cor <- maxs.gg %>% 
+  dplyr::select(Virus, Genus, Species, Mosquito, Component, Ratio, max.mosq) %>% 
+  pivot_wider(names_from = Component, values_from = Ratio) %>% 
+  group_by(Virus, Mosquito, Genus, Species) %>%
+  summarize(
+    mean_inf = mean(Infection, na.rm = T)
+  , mean_dis = mean(Dissemination, na.rm = T)
+  , mean_tra = mean(Transmission, na.rm = T)
+  , num.mosq = sum(max.mosq, na.rm = T)
   )
 
 max_cor <- max_cor %>% mutate(Mosquito = factor(Mosquito

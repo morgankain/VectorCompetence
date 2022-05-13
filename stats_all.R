@@ -5,33 +5,21 @@ All %>% filter(Component == "Infection") %>% {
     facet_grid(Genus~Virus_Family, scales = "free")
 }
 
-## Subset 
-vc.I.data <- All %>% filter(Component == "Infection") %>% 
-  mutate(ref = as.factor(ref)) %>% filter(Genus != "Anopheles")   
+vc.I.data <- All %>% filter(Component == "Infection") %>% mutate(ref = as.factor(ref))
 
-vc.I.model <- glmer(
-   ## response in form of cbind(success, failure)
+## One of the few [only?] methods of dealing with complete separation with random effects is to go Bayesian
+ ## Rank deficient but that's fine, some Genus*Virus_Family simply wont get estimated
+vc.I.model <- blme::bglmer(
+   ## response in form of cbind(success, failure); equivalent to using the proportion as response and n as weights
    cbind(num, total - num) ~ 
    ## fixed effects
-   Genus*Virus_Family + dose +
+   Genus*Virus_Family + dose + day +
    ## random effects
    (1 | ref) + (1 | Species)
+   ## SD of 3 on the fixed effects as suggest in Fox et al. 2015
+, fixef.prior = normal(cov = diag(9,15))
+, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 20000))
 , data    = vc.I.data
-, family  = "binomial"
-  )
-
-vc.I.data2 <- All %>% filter(Component == "Infection") %>% mutate(ref = as.factor(ref))
-
-vc.I.model2 <- blme::bglmer(
-   ## response in form of cbind(success, failure)
-   cbind(num, total - num) ~ 
-   ## fixed effects
-   Genus*Virus_Family + dose +
-   ## random effects
-   (1 | ref) + (1 | Species)
-, fixef.prior = normal(cov = diag(9,14))
-, control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 20000))
-, data    = vc.I.data2
 , family  = "binomial"
   )
 
@@ -41,31 +29,9 @@ All %>% filter(Component == "Transmission") %>% {
     facet_grid(Genus~Virus_Family, scales = "free")
 }
 
-find_all_zeros <- All %>% filter(Component == "Transmission") %>%
-  group_by(Genus, Virus_Family) %>% 
-  summarize(max_prop = max(prop, na.rm = T)) %>% filter(max_prop == 0) %>% 
-  mutate(GF = interaction(Genus, Virus_Family))
+vc.T.data <- All %>% filter(Component == "Transmission") %>% mutate(ref = as.factor(ref))
 
-'%notin%' <- Negate('%in%')
-
-vc.T.data <- All %>% filter(Component == "Transmission") %>% 
-  mutate(ref = as.factor(ref)) %>% 
-  mutate(GF = interaction(Genus, Virus_Family)) %>% 
-  filter(GF %notin% find_all_zeros$GF)
-
-vc.T.model <- glmer(
-   ## response in form of cbind(success, failure)
-   cbind(num, total - num) ~ 
-   ## fixed effects
-   Genus*Virus_Family + dose + day +
-   ## random effects
-   (1 | ref) + (1 | Species)
-, data    = vc.T.data
-, family  = "binomial")
-
-vc.T.data2 <- All %>% filter(Component == "Transmission") %>% mutate(ref = as.factor(ref))
-
-vc.T.model2 <- blme::bglmer(
+vc.T.model <- blme::bglmer(
    ## response in form of cbind(success, failure)
    cbind(num, total - num) ~ 
    ## fixed effects
@@ -73,17 +39,18 @@ vc.T.model2 <- blme::bglmer(
    ## random effects
    (1 | ref) + (1 | Species)
 , fixef.prior = normal(cov = diag(9,15))
-, control = glmerControl(optimizer="bobyqa", optCtrl = list(maxfun = 20000))
-, data    = vc.T.data2
+, control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 20000))
+, data    = vc.T.data
 , family  = "binomial"
   )
 
-## Estimates from both models
+## Estimates from both models using emmeans
 emm_s.I <- emmeans::emmeans(
-    vc.I.model2
+    vc.I.model
   , ~ Genus | Virus_Family
   , at = list(
     dose = 0
+  , day  = 0
     )
   , type = "response")
 
@@ -91,11 +58,11 @@ emm.pred.I <- data.frame(
   prob.I = summary(emm_s.I)$prob 
 , lwr.I  = summary(emm_s.I)$asymp.LCL
 , upr.I  = summary(emm_s.I)$asymp.UCL
-, vir    = rep(sort(unique(vc.I.data2$Virus_Family)), each = n_distinct(vc.I.data2$Genus))
-, mos    = rep(rep(unique(vc.I.data2$Genus) %>% sort()), n_distinct(vc.I.data2$Virus_Family)))
+, vir    = rep(sort(unique(vc.I.data$Virus_Family)), each = n_distinct(vc.I.data$Genus))
+, mos    = rep(rep(unique(vc.I.data$Genus) %>% sort()), n_distinct(vc.I.data$Virus_Family)))
 
 emm_s.T <- emmeans::emmeans(
-    vc.T.model2
+    vc.T.model
   , ~ Genus | Virus_Family
   , at   = list(
     day  = 1
@@ -107,8 +74,8 @@ emm.pred.T <- data.frame(
   prob.T = summary(emm_s.T)$prob 
 , lwr.T  = summary(emm_s.T)$asymp.LCL
 , upr.T  = summary(emm_s.T)$asymp.UCL
-, vir    = rep(sort(unique(vc.T.data2$Virus_Family)), each = n_distinct(vc.T.data2$Genus))
-, mos    = rep(rep(unique(vc.T.data2$Genus) %>% sort()), n_distinct(vc.T.data2$Virus_Family)))
+, vir    = rep(sort(unique(vc.T.data$Virus_Family)), each = n_distinct(vc.T.data$Genus))
+, mos    = rep(rep(unique(vc.T.data$Genus) %>% sort()), n_distinct(vc.T.data$Virus_Family)))
 
 emm.pred <- cbind(emm.pred.I, emm.pred.T[, 1:3])
 names(emm.pred)[c(4, 5)] <- c("Virus", "Genus")
@@ -157,4 +124,57 @@ emm.pred %>% mutate(Virus = plyr::mapvalues(Virus
   , legend.text.align = 0
   , legend.position = "left"
   , axis.title.y.right = element_text(vjust = 2))
-      }
+  }
+
+for_cor.test <- left_join(
+(
+  vc.I.data %>% dplyr::select(Virus, Mosquito, prop, Genus, Species, Virus_Family, total, num) %>% 
+    rename(Infection = prop) %>% ungroup()
+)
+, 
+(
+  vc.T.data %>% dplyr::select(Virus, Mosquito, prop, Genus, Species, Virus_Family, total, num) %>% 
+    rename(Transmission = prop) %>% ungroup()
+)
+)
+
+for_cor.test %<>% group_by(
+  Mosquito, Genus, Virus, Virus_Family
+) %>% summarize(
+  mean_inf = mean(Infection, na.rm = T)
+, mean_tra = mean(Transmission, na.rm = T)
+, sd_inf   = sd(Infection, na.rm = T)
+, sd_tra   = sd(Transmission, na.rm = T)
+, tot_s    = sum(total, na.rm = T)
+, num_s    = sum(num, na.rm = T)
+)
+
+plot(for_cor.test$mean_inf, for_cor.test$mean_tra)
+
+with(for_cor.test
+, cor.test(mean_inf, mean_tra)
+)
+
+## Look at some of the most examined species' infection and transmission across all tested viruses
+left_join(
+  lm.data.ttt.I %>% group_by(Mosquito) %>% filter(!is.na(Ratio)) %>% 
+    mutate(num_vir = length(unique(Virus))) %>% filter(num_vir > 5) %>% summarize(mean_inf = mean(Ratio, na.rm = T))
+, lm.data.ttt.T %>% group_by(Mosquito) %>% filter(!is.na(Ratio)) %>% 
+    mutate(num_vir = length(unique(Virus))) %>% filter(num_vir > 5) %>% summarize(mean_tra = mean(Ratio, na.rm = T))
+) %>% mutate(dif = mean_inf - mean_tra) %>% arrange(desc(dif))
+
+## Simple relationship between infection and transmission
+glm.rt <- glm(Infection ~ Transmission
+ , family  = "binomial"
+ , weights = max_samps
+ , data    = for_cor.test)
+
+summary(glm.rt)
+with(summary(glm.rt), 1 - deviance/null.deviance)
+
+## Calculate the sample-size weighted proportional change in proportion between each step
+
+maxs.gg %>% 
+  group_by(Component) %>% 
+  summarize(avg_ratio = weighted.mean(Ratio, max.mosq, na.rm = T)) %>%
+  mutate(prop_ratio = avg_ratio / lag(avg_ratio, 1))

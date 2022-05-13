@@ -1,5 +1,7 @@
   ## Load the data
 All <- read.csv("All.csv") %>% 
+  ## Dropping Rift Valley Fever Virus
+  filter(virus != "RVFV") %>%
   ## Rename some columns for more consistent naming conventions
   rename(
   num.Infection       = num.infected
@@ -20,20 +22,33 @@ All <- read.csv("All.csv") %>%
   ## convert refs to numeric than factor to shorten them
   mutate(ref = as.factor(ref)) %>% 
   mutate(ref = as.numeric(ref)) %>% 
-  ## and add a column to identify different replicated experiments that had the same dose and day within a given citation
-  group_by(species, virus, infectious.dose.mid, day.PE.mid, ref) %>% 
-  mutate(experiment = seq(n())) %>%
   ungroup()
 
+## save a check of exactly how many data points we have to ensure that all of this data manipulation
+ ## doesn't create new data or remove data
+tot_points <- (All %>% filter(!is.na(perc.Infection)) %>% summarize(n_points = n()))$n_points +
+(All %>% filter(!is.na(perc.Dissemination)) %>% summarize(n_points = n()))$n_points +
+(All %>% filter(!is.na(perc.Transmission)) %>% summarize(n_points = n()))$n_points
+
 All %<>% dplyr::select(
-  species, virus, infectious.dose.mid, day.PE.mid, ref, experiment    ## covaraites
+  species, virus, infectious.dose.mid, day.PE.mid, ref    ## covaraites
   , num.Infection    , total.Infection                    ## Infection response
   , num.Dissemination, total.Dissemination                ## Dissemination response
   , num.Transmission , total.Transmission                 ## Transmission response
   ) %>% pivot_longer(
-    -c(species, virus, infectious.dose.mid, day.PE.mid, ref, experiment)
+    -c(species, virus, infectious.dose.mid, day.PE.mid, ref
+      )
   , names_to  = "response"
   , values_to = "value")
+
+## Add a column to identify different replicates at the same dose and day within a given citation
+ ## these replicates may have differed in a number of different ways, including for example, 
+  ## rearing temp, mosquito isolate, viral strain, feeding method etc. Too few studies reported all of these
+    ## to include them as fixed effects so they get lumped into between study variance in the study random effect
+All %<>% group_by(
+  species, virus, infectious.dose.mid, day.PE.mid, ref, response
+) %>% mutate(exp_rep = seq(n())) %>%
+  ungroup()
 
 All %<>% mutate(
   ## convert names to get unique responses
@@ -52,9 +67,6 @@ All %<>% rename(
 , Component = component) %>% 
   ## proportion for analysis
   mutate(prop = num / total)
-
-## Dropping Rift Valley Fever Virus
-All %<>% filter(Virus != "RVFV")
 
 ## Finicky/nitpicky tidying mostly for manuscript figures 
 mosq.names <- strsplit(as.character(All$Mosquito), "_") %>% 
@@ -116,3 +128,12 @@ All %<>% mutate(
 ## Rearrange columns for aesthetics mostly
 All %<>% relocate(c(Genus, Species), .after = Mosquito) %>%
   relocate(Virus_Family, .after = Virus)
+
+## Use that data size count to double check our manipulation
+print(
+  paste(
+  "Data cleaning check pass? -- "
+, All %>% filter(!is.na(prop)) %>% nrow() == tot_points
+, sep = "")
+)
+
