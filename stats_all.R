@@ -80,52 +80,6 @@ emm.pred.T <- data.frame(
 emm.pred <- cbind(emm.pred.I, emm.pred.T[, 1:3])
 names(emm.pred)[c(4, 5)] <- c("Virus", "Genus")
 
-emm.pred %>% mutate(Virus = plyr::mapvalues(Virus
-    , from = c("AAFV", "ARAL", "CAFV")
-    , to   = c(
-        "Aedes-associated flaviviruses"
-      , "Arthritogenic alphaviruses"
-      , "Culex-associated flaviviruses"))) %>% 
-  mutate(Virus = factor(Virus
-  , levels = c(
-    "Aedes-associated flaviviruses"
-  , "Culex-associated flaviviruses"
-  , "Arthritogenic alphaviruses"))) %>% {
-  ggplot(., aes(prob.I, prob.T)) +
-    geom_abline(slope = 1, intercept = 0, lwd = 0.5, linetype = "dashed") +
-    geom_errorbar(aes(ymin = lwr.T, ymax = upr.T, colour = Genus), lwd = 0.4, width = 0.03) + 
-    geom_errorbarh(aes(xmin = lwr.I, xmax = upr.I, colour = Genus), lwd = 0.4, height = 0.03) +
-    geom_point(aes(colour = Genus), size = 3) +
-    scale_y_continuous(limits = c(-0.035, 1)
-      , breaks = c(0.00, 0.25, 0.50, 0.75, 1.00)
-      , labels = c(0, 0.25, 0.50, 0.75, 1)) +
-    scale_x_continuous(limits = c(-0.035, 1)
-      , breaks = c(0.00, 0.25, 0.50, 0.75, 1.00)
-      , labels = c(0, 0.25, 0.50, 0.75, 1)) + 
-    scale_colour_brewer(
-      palette = "Dark2"
-    , labels  = c(
-      expression(italic("Aedes"))
-    , expression(italic("Anopheles"))
-    , expression(italic("Coquillettidia"))
-    , expression(italic("Culex"))
-    , expression(italic("Mansonia"))
-    , expression(italic("Verrallina"))
-      )) +
-    xlab("Proportion infected") +
-    ylab("Propotion transmitting") +
-    facet_wrap(~Virus, nrow = 1
-    , labeller = facet_labeller
-      ) +
-    theme(
-    legend.key.size = unit(.55, "cm")
-  , legend.title = element_text(size = 14)
-  , legend.text = element_text(size = 14)
-  , legend.text.align = 0
-  , legend.position = "left"
-  , axis.title.y.right = element_text(vjust = 2))
-  }
-
 for_cor.test <- left_join(
 (
   vc.I.data %>% dplyr::select(Virus, Mosquito, prop, Genus, Species, Virus_Family, total, num) %>% 
@@ -155,26 +109,5 @@ with(for_cor.test
 , cor.test(mean_inf, mean_tra)
 )
 
-## Look at some of the most examined species' infection and transmission across all tested viruses
-left_join(
-  lm.data.ttt.I %>% group_by(Mosquito) %>% filter(!is.na(Ratio)) %>% 
-    mutate(num_vir = length(unique(Virus))) %>% filter(num_vir > 5) %>% summarize(mean_inf = mean(Ratio, na.rm = T))
-, lm.data.ttt.T %>% group_by(Mosquito) %>% filter(!is.na(Ratio)) %>% 
-    mutate(num_vir = length(unique(Virus))) %>% filter(num_vir > 5) %>% summarize(mean_tra = mean(Ratio, na.rm = T))
-) %>% mutate(dif = mean_inf - mean_tra) %>% arrange(desc(dif))
-
-## Simple relationship between infection and transmission
-glm.rt <- glm(Infection ~ Transmission
- , family  = "binomial"
- , weights = max_samps
- , data    = for_cor.test)
-
-summary(glm.rt)
-with(summary(glm.rt), 1 - deviance/null.deviance)
-
-## Calculate the sample-size weighted proportional change in proportion between each step
-
-maxs.gg %>% 
-  group_by(Component) %>% 
-  summarize(avg_ratio = weighted.mean(Ratio, max.mosq, na.rm = T)) %>%
-  mutate(prop_ratio = avg_ratio / lag(avg_ratio, 1))
+## Fit glmms for aedes
+source("aedes_glmm.R")

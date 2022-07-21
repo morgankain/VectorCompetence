@@ -1,6 +1,7 @@
 #################################################################################
 ## Code associated with the publication: 
-## Not all mosquitoes are created equal: incriminating mosquitoes as vectors of arboviruses
+## Not all mosquitoes are created equal: a synthesis of vector competence experiments
+##   reinforces virus associations of Australian mosquitoes
 ## Data cleaning, statistical analyses, and publication figures
 #################################################################################
 
