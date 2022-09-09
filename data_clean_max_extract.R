@@ -36,7 +36,7 @@ dimnames(num_ind) <- list(virus_list, mosquito_list, c("all", "max"), components
 ## And an empty data frame with the correct column names to which rows will be added
 all.res       <- data.frame(Mosquito = "", Virus = "", Component = ""
   , dose = 0, day = 0
-  , num = 0, prop = 0
+  , num  = 0, prop = 0
   , max_val = 0); all.res <- all.res[-1, ]  
 
 ## Find the proportions for all metrics of competence (over k), for all viruses (over v) and species (over m)
@@ -156,4 +156,6 @@ names(num_exp.gg)[c(4, 5)] <- c("all.exp", "max.exp")
 ## Combine everything
 maxs.gg           <- left_join(maxs.gg, num_ind.gg) %>% left_join(., num_exp.gg)
 
+## Further clean for manuscript supplemental figures
+source("output_clean.R")
 

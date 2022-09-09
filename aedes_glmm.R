@@ -1,10 +1,10 @@
 ### --- glmm for aedes aeqypti --- ###
 
 ## Start from scratch with the original data
-All   <- read.csv("All.csv")
+All.glmm   <- read.csv("All.csv")
 
 ## For Aedes aegypti check the viruses with good coverage of each data type
-test.inf <- All %>% filter(
+test.inf <- All.glmm %>% filter(
   !is.na(infectious.dose.mid)
 , !is.na(day.PE.mid)
 , !is.na(total.infect)
@@ -14,7 +14,7 @@ test.inf <- All %>% filter(
   infection = sum(length(unique(infectious.dose.mid)))
   )
 
-test.dis <- All %>% filter(
+test.dis <- All.glmm %>% filter(
   !is.na(infectious.dose.mid)
 , !is.na(day.PE.mid)
 , !is.na(total.dissem)
@@ -24,7 +24,7 @@ test.dis <- All %>% filter(
   disseminated = sum(length(unique(day.PE.mid)))
   )
 
-test.trans <- All %>% filter(
+test.trans <- All.glmm %>% filter(
   !is.na(infectious.dose.mid)
 , !is.na(day.PE.mid)
 , !is.na(total.transmitted)
@@ -42,13 +42,16 @@ left_join(test.inf, test.dis) %>% left_join(., test.trans)
 virus_plotting <- c("CHIKV", "DENV_3", "ZIKV")
 
 
-## Fit separately (could also consider multivariate model to get the correlations among the outcomes)
+## Fit each stage of transmission (infection, dissemination, transmission)
+ ## separately (could also consider multivariate model to get the correlations among the outcomes)
 
 ## Infection
 
-All.s <- All %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.infect))
+All.s <- All.glmm %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.infect))
 
 All.lme4.data <- (All.s %>% filter(species == "ae_aegypti"))
+
+## Set up data frame for making prediction
 virus_range   <- unique(All.lme4.data$virus)
 day_range     <- seq(
   min(unique(All.lme4.data$day.PE.mid))
@@ -61,6 +64,10 @@ dose_range    <- seq(
 , .3
 )
 
+## Some convergence warnings, but not hugely unexpected given the distribution of data among viruses.
+ ## As we use this analysis only as a case study example for a talking point on variation over dose and time
+  ## and as we do not rely on the results to make biological claims,
+   ## we are not too concerned by these convergence warnings 
 All.lme4 <- glmer(
    cbind(num.infected, total.infect - num.infected) ~ virus*infectious.dose.mid + day.PE.mid +
   (1 | ref)
@@ -99,7 +106,7 @@ saveRDS(All.lme4.bb.ci, "inf.boot.Rds")
 
 ## Dissemination
 
-All.s <- All %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.dissem))
+All.s <- All.glmm %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.dissem))
 
 All.lme4 <- glmer(
    cbind(num.disseminated, total.dissem - num.disseminated) ~ virus*day.PE.mid + infectious.dose.mid +
@@ -107,6 +114,7 @@ All.lme4 <- glmer(
 ## cbind(success, failure)
 , data    = (All.s %>% filter(species == "ae_aegypti")) 
 , family  = "binomial"
+, control = glmerControl(optCtrl=list(maxfun=2e7))
 )
 
 n_samps      <- 1000
@@ -138,7 +146,7 @@ saveRDS(All.lme4.bb.ci, "dis.boot.Rds")
 
 #### Transmission
 
-All.s <- All %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.transmitted))
+All.s <- All.glmm %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.transmitted))
 
 ## num.transmitted
 ## total.transmitted

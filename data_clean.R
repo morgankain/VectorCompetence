@@ -1,3 +1,7 @@
+####
+## Clean raw data for analysis
+####
+
   ## Load the data
 All <- read.csv("All.csv") %>% 
   ## Dropping Rift Valley Fever Virus
@@ -44,7 +48,7 @@ All %<>% dplyr::select(
 ## Add a column to identify different replicates at the same dose and day within a given citation
  ## these replicates may have differed in a number of different ways, including for example, 
   ## rearing temp, mosquito isolate, viral strain, feeding method etc. Too few studies reported all of these
-    ## to include them as fixed effects so they get lumped into between study variance in the study random effect
+   ## to include them as fixed effects so they get lumped into between study variance in the study random effect
 All %<>% group_by(
   species, virus, infectious.dose.mid, day.PE.mid, ref, response
 ) %>% mutate(exp_rep = seq(n())) %>%
@@ -68,7 +72,7 @@ All %<>% rename(
   ## proportion for analysis
   mutate(prop = num / total)
 
-## Finicky/nitpicky tidying mostly for manuscript figures 
+## Finicky/nitpicky tidying mostly for clean manuscript figures 
 mosq.names <- strsplit(as.character(All$Mosquito), "_") %>% 
   sapply(., FUN = function(x) c(paste(
     paste(x[1], ".", sep = ""), x[2]
@@ -129,11 +133,10 @@ All %<>% mutate(
 All %<>% relocate(c(Genus, Species), .after = Mosquito) %>%
   relocate(Virus_Family, .after = Virus)
 
-## Use that data size count to double check our manipulation
+## Use the previously saved data size count to double check data manipulation
 print(
   paste(
   "Data cleaning check pass? -- "
 , All %>% filter(!is.na(prop)) %>% nrow() == tot_points
 , sep = "")
 )
-

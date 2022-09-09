@@ -327,7 +327,7 @@ data.frame(
     ylab("Residuals")
 }
 
-## Figures 3,4 from first submission, now supplemental A (note: panels A and B combined in Keynote)
+## Figures 3,4 from first submission, now supplemental figures (note: panels A and B combined in Keynote)
 
 maxs.gg.s <- maxs.gg %>% 
   group_by(Component, Virus) %>% 
@@ -337,7 +337,8 @@ maxs.gg.s <- maxs.gg %>%
   , upr       = quantile(Ratio, 0.8, na.rm = T)
   )
 
-## for 3 and 4 minor adjustments to this is needed (e.g., Infection vs Transmission and axis labels)
+## for Infection and Transmission figures minor adjustments are needed (e.g., axis labels)
+ ## Code is not repeated
 
 ## 306 x 775 ; 3.20 x 8.08
 maxs.gg.s %>% filter(Component == "Transmission") %>% 
@@ -602,7 +603,7 @@ virus_plotting <- c("CHIKV", "DENV-3", "ZIKV")
 ## Infection
 out.gg <- readRDS("inf.boot.Rds")
 
-All.s <- All %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.infect))
+All.s <- All.glmm %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.infect))
 
 All.lme4.data <- (All.s %>% filter(species == "ae_aegypti"))
 virus_range   <- unique(All.lme4.data$virus)
@@ -687,7 +688,7 @@ tested") +
 ## Dissemination
 out.gg <- readRDS("dis.boot.Rds")
 
-All.s <- All %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.dissem))
+All.s <- All.glmm %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.dissem))
 n_samps      <- 1000
 day_range    <- seq(1, 25, by = 0.5)
 virus_range  <- unique((All.s %>% filter(species == "ae_aegypti"))$virus)
@@ -768,7 +769,7 @@ tested") +
 ## Transmission
 out.gg <- readRDS("tra.boot.Rds")
 
-All.s <- All %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.transmitted))
+All.s <- All.glmm %>% filter(!is.na(infectious.dose.mid), !is.na(day.PE.mid), !is.na(total.transmitted))
 
 n_samps     <- 1000
 day_range   <- seq(1, 25, by = 0.5)
@@ -851,7 +852,6 @@ inf.plot <- inf.plot + scale_colour_gradient(low = "deepskyblue1", high = "fireb
 post
 exposure          ")
 
-
 gridExtra::grid.arrange(
   inf.plot
 , dis.plot
@@ -918,5 +918,4 @@ ggplot(ttest, aes(Infection, Transmission)) +
   , legend.text = element_text(size = 14)
   , strip.text.x = element_text(face = "italic")
     ) 
-
 

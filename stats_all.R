@@ -1,3 +1,6 @@
+####
+## Run all statistics required for the manuscript
+####
 
 ## quick look at what data exists for infection
 All %>% filter(Component == "Infection") %>% {
@@ -16,7 +19,7 @@ vc.I.model <- blme::bglmer(
    Genus*Virus_Family + dose + day +
    ## random effects
    (1 | ref) + (1 | Species)
-   ## SD of 3 on the fixed effects as suggest in Fox et al. 2015
+   ## SD of 3 on the fixed effects as suggest in Fox et al. 2015 and by Ben Bolker, GLMM worked examples R pub
 , fixef.prior = normal(cov = diag(9,15))
 , control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun = 20000))
 , data    = vc.I.data
@@ -54,13 +57,6 @@ emm_s.I <- emmeans::emmeans(
     )
   , type = "response")
 
-emm.pred.I <- data.frame(
-  prob.I = summary(emm_s.I)$prob 
-, lwr.I  = summary(emm_s.I)$asymp.LCL
-, upr.I  = summary(emm_s.I)$asymp.UCL
-, vir    = rep(sort(unique(vc.I.data$Virus_Family)), each = n_distinct(vc.I.data$Genus))
-, mos    = rep(rep(unique(vc.I.data$Genus) %>% sort()), n_distinct(vc.I.data$Virus_Family)))
-
 emm_s.T <- emmeans::emmeans(
     vc.T.model
   , ~ Genus | Virus_Family
@@ -69,6 +65,14 @@ emm_s.T <- emmeans::emmeans(
   , dose = 0
   )
   , type = "response")
+
+## Place estimates in a more convenient form
+emm.pred.I <- data.frame(
+  prob.I = summary(emm_s.I)$prob 
+, lwr.I  = summary(emm_s.I)$asymp.LCL
+, upr.I  = summary(emm_s.I)$asymp.UCL
+, vir    = rep(sort(unique(vc.I.data$Virus_Family)), each = n_distinct(vc.I.data$Genus))
+, mos    = rep(rep(unique(vc.I.data$Genus) %>% sort()), n_distinct(vc.I.data$Virus_Family)))
 
 emm.pred.T <- data.frame(
   prob.T = summary(emm_s.T)$prob 
@@ -80,6 +84,7 @@ emm.pred.T <- data.frame(
 emm.pred <- cbind(emm.pred.I, emm.pred.T[, 1:3])
 names(emm.pred)[c(4, 5)] <- c("Virus", "Genus")
 
+## Create a joint data frame for calculating correlation
 for_cor.test <- left_join(
 (
   vc.I.data %>% dplyr::select(Virus, Mosquito, prop, Genus, Species, Virus_Family, total, num) %>% 
@@ -108,6 +113,3 @@ plot(for_cor.test$mean_inf, for_cor.test$mean_tra)
 with(for_cor.test
 , cor.test(mean_inf, mean_tra)
 )
-
-## Fit glmms for aedes
-source("aedes_glmm.R")
